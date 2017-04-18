@@ -1,0 +1,16 @@
+Scripts
+
+UDP:
+
+Cliente:
+./fisica_sr.sh 5002 7001 128
+./fisica_cl.sh 7002 127.0.0.1 5001
+php trans_cl.php (tcp | udp) 8082 7002 7001 5002
+./app_cl.out 8082
+
+
+Servidor:
+./fisica_sr.sh 5001 7011 256
+./fisica_cl.sh 7012 127.0.0.1 5002
+php trans_sr.php (tcp | udp) 7012 7011 5001
+./app_sr.out 8081
