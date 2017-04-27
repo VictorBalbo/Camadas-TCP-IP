@@ -1,5 +1,30 @@
 #!/bin/bash
 
+function toHex(){
+    binary="";
+    for (( i=0 ; i<${#1} ; i+=4 )); do 
+        case ${1:i:4} in
+            0000) binary+="0";;
+            0001) binary+="1";;
+            0010) binary+="2";;
+            0011) binary+="3";;
+            0100) binary+="4";;
+            0101) binary+="5";;
+            0110) binary+="6";;
+            0111) binary+="7";;
+            1000) binary+="8";;
+            1001) binary+="9";;
+            1010) binary+="a";;
+            1011) binary+="b";;
+            1100) binary+="c";;
+            1101) binary+="d";;
+            1110) binary+="e";;
+            1111) binary+="f";;
+        esac
+    done
+    echo $binary
+}
+
 #Porta do servidor
 PORT_SERVER=`echo -n $1`
 
@@ -24,9 +49,15 @@ if [ "$TMQ" -lt "88" ] || [ "$TMQ" -gt "1542" ]; then
     exit
 fi
 
-#Espera a conexão do cliente da camada física
-echo "Esperando conexão..."
-nc -l $PORT_SERVER > frame_o.txt
-xxd -p -r frame_o.txt > received.txt 
-cat frame_o.txt
-rm frame_o.txt &> /dev/null
+# Espera a conexão do cliente da camada física
+while true; do
+    echo "Esperando conexão..."
+    nc -l $PORT_SERVER > frame_o.txt
+    FILE_DATA=`cat frame_o.txt`
+    FILE_DATA=`toHex $FILE_DATA` # Cast Binary to Hex
+    echo $FILE_DATA > frame_o.txt
+    xxd -p -r frame_o.txt > received.txt # Cast Hex back to String
+    echo "Arquivo recebido."
+    echo
+    rm frame_o.txt &> /dev/null
+done;
