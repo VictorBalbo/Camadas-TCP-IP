@@ -1,5 +1,16 @@
 #!/bin/bash
 
+#############################################################################################
+#       Trabalho Prático de Redes de Computadores I - Implementação da camada física        #
+#                                                                                           #
+# 2017/2 - 6º período                                                                       #
+#                                                                                           #
+# Gabriel Pires Miranda de Magalhães    -                                                   #
+# Thayane Pessoa Duarte                 -                                                   #
+# Victor de Oliveira Balbo              -                                                   #
+# Vinícius Magalhães D'Assunção         -   201422040232                                    #
+#############################################################################################
+
 function toBinary(){
     binary="";
     for (( i=0 ; i<${#1} ; i++ )); do 
@@ -25,6 +36,50 @@ function toBinary(){
     echo $binary
 }
 
+
+# Componentes do quadro segundo o RFC
+function montaQuadro() {
+    dados=$1
+    IP_SERVER=$2
+    IFACE=`ip route show default | awk '/default/ {print $5}'`
+
+    # PREAMBULO(hex), são 7 bytes. 10101010....
+    PREAMBULO='aaaaaaaaaaaaaa'
+    # SFD - Start of Frame(hex)- 1 byte
+    SFD='ab'
+    # Tamanho/tipo, neste caso, tipo ETHERNET 
+    TAM_TIPO='0800'
+
+    # MAC origem e destino - 6 bytes cada (pegar do ifconfig)
+    MAC_ORIG=`ifconfig | grep $IFACE | cut -d' ' -f9`
+
+    #Se não encontrar o MAC de origem
+    if [ -z "$MAC_ORIG" ]; then
+        MAC_ORIG="00:00:00:00:00:00"
+    fi
+    echo "MAC da Origem: $MAC_ORIG"
+
+    #Ping para poder fazer o ARP
+    ping -c 1 $IP_SERVER &>/dev/null
+
+    MAC_DEST=`arp $IP_SERVER | grep -E -o -e "([A-Za-z0-9]{2}:?){6}"`
+    #Se não encontrar o MAC de destino
+    if [ -z "$MAC_DEST" ]; then
+        MAC_DEST="00:00:00:00:00:00"
+    fi
+    echo "MAC do Destino: $MAC_DEST"
+
+    #Remove os ':' dos MACs
+    MAC_ORIG=`echo $MAC_ORIG | sed "s/://g"`
+    MAC_DEST=`echo $MAC_DEST | sed "s/://g"`
+
+    #Monta o quadro Ethernet
+    echo -n "${PREAMBULO}${SFD}${MAC_DEST}${MAC_ORIG}${TAM_TIPO}${dados}" | xxd -p > frame_e.hex
+    #Calcula o CRC e adiciona no final do quadro
+    crc32 frame_e.hex | xxd -p >> frame_e.hex
+}
+
+
 #Informações da Entidade Par
 IP_SERVER=`echo -n $1`
 PORT_SERVER=`echo -n $2`
@@ -41,16 +96,18 @@ if [ -z "$PORT_SERVER" ]; then
     exit
 fi
 
-echo "Montando o frame..."
-FILE_DATA=`cat packet.txt | xxd -p `
-FILE_BINARY=`toBinary $FILE_DATA`
+dados=`cat pacote.txt`
 
-#Exibe o pacote IP no formato HEX Dump
+echo "Montando o quadro..."
+rm frame_i.txt &> /dev/null
+montaQuadro "$dados" "$IP_SERVER"
+quadro=`cat frame_e.hex`
+arq_bin=`toBinary "$quadro"`
+
+echo "$arq_bin" > frame_i.txt
 echo "Enviando o pacote IP..."
-echo $FILE_BINARY > frame_i.txt
-
 #Envia o quadro Ethernet no formato binário textual para o servidor da camada física
-nc $IP_SERVER $PORT_SERVER < frame_i.txt
+nc "$IP_SERVER" "$PORT_SERVER" < frame_i.txt
 echo "Pacote Enviado."
 
 rm frame_i.txt &> /dev/null

@@ -1,5 +1,16 @@
 #!/bin/bash
 
+#############################################################################################
+#       Trabalho Prático de Redes de Computadores I - Implementação da camada física        #
+#                                                                                           #
+# 2017/2 - 6º período                                                                       #
+#                                                                                           #
+# Gabriel Pires Miranda de Magalhães    -                                                   #
+# Thayane Pessoa Duarte                 -                                                   #
+# Victor de Oliveira Balbo              -                                                   #
+# Vinícius Magalhães D'Assunção         -   201422040232                                    #
+#############################################################################################
+
 function toHex(){
     binary="";
     for (( i=0 ; i<${#1} ; i+=4 )); do 
@@ -54,10 +65,9 @@ while true; do
     echo "Esperando conexão..."
     nc -l $PORT_SERVER > frame_o.txt
     FILE_DATA=`cat frame_o.txt`
-    FILE_DATA=`toHex $FILE_DATA` # Cast Binary to Hex
+    FILE_DATA=`toHex $FILE_DATA` # Cast Binary to HexDump
     echo $FILE_DATA > frame_o.txt
-    xxd -p -r frame_o.txt > received.txt # Cast Hex back to String
+    xxd -p -r frame_o.txt > received.txt # Cast HexDump back to String
     echo "Arquivo recebido."
-    echo
     rm frame_o.txt &> /dev/null
 done;
