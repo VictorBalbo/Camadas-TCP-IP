@@ -5,9 +5,9 @@
 #                                                                                           #
 # 2017/2 - 6º período                                                                       #
 #                                                                                           #
-# Gabriel Pires Miranda de Magalhães    -                                                   #
-# Thayane Pessoa Duarte                 -                                                   #
-# Victor de Oliveira Balbo              -                                                   #
+# Gabriel Pires Miranda de Magalhães    -   201422040011                                    #
+# Thayane Pessoa Duarte                 -   201312040408                                    #
+# Victor de Oliveira Balbo              -   201422040178                                    #
 # Vinícius Magalhães D'Assunção         -   201422040232                                    #
 #############################################################################################
 
@@ -98,16 +98,49 @@ fi
 
 dados=`cat pacote.txt`
 
-echo "Montando o quadro..."
-rm frame_i.txt &> /dev/null
-montaQuadro "$dados" "$IP_SERVER"
-quadro=`cat frame_e.hex`
-arq_bin=`toBinary "$quadro"`
 
-echo "$arq_bin" > frame_i.txt
-echo "Enviando o pacote IP..."
-#Envia o quadro Ethernet no formato binário textual para o servidor da camada física
-nc "$IP_SERVER" "$PORT_SERVER" < frame_i.txt
-echo "Pacote Enviado."
 
-rm frame_i.txt &> /dev/null
+# Remetente solicita TMQ enviando a mensagem TMQ ao destinatário.
+echo "Solicitando o TMQ..."
+echo "TMQ" | nc "$IP_SERVER" "$PORT_SERVER"
+# Destinatário responde com o valor em bytes
+TMQ=`nc "$IP_SERVER" "$PORT_SERVER"`
+echo "TMQ recebido. TMQ = $TMQ bytes"
+echo -e "\n--------\n"
+# Conta quantos bytes tem o arquivo
+tamanho=`echo "$dados" | wc -c`
+echo "tamanho = $tamanho"
+n_quadros=$((( tamanho / TMQ )))
+echo "nquadros = $n_quadros"
+# Envia n_envios quadros
+if [ "$tamanho" == "0" ]; then
+	n_quadros=1
+fi
+
+for(( i=1; i <= $(( n_quadros )); i++ )); do
+	# Remetente verifica se há colisão (probabilidade). 
+	COLISAO=2
+	# Verifica se houve colisão
+	while [ "$COLISAO" = $(( RANDOM % 5 )) ]; do
+		echo "Verificando Colisão..."
+		echo "Houve Colisão! Aguardando..."
+		# Aguarda tempo aleatório
+		sleep $((( RANDOM % 3 ) + 1))
+	done
+	# Parte o arquivo
+	parte=`echo -n "$dados" | cut -c"$i"-"$(( i * TMQ ))"`
+	echo "Montando o quadro..."
+	rm frame_i.txt &> /dev/null
+	# monta o quadro
+	montaQuadro "$parte" "$IP_SERVER"
+	quadro=`cat frame_e.hex`
+	# converte pra binário
+	arq_bin=`toBinary "$quadro"`
+	echo "$arq_bin" > frame_i.txt
+	echo "Enviando o quadro..."
+	#Envia o quadro Ethernet no formato binário textual para o servidor da camada física
+	nc "$IP_SERVER" "$PORT_SERVER" < frame_i.txt
+	echo "Quadro Enviado."
+	echo -e "\n--------\n"
+	rm frame_i.txt &> /dev/null
+done

@@ -5,9 +5,9 @@
 #                                                                                           #
 # 2017/2 - 6º período                                                                       #
 #                                                                                           #
-# Gabriel Pires Miranda de Magalhães    -                                                   #
-# Thayane Pessoa Duarte                 -                                                   #
-# Victor de Oliveira Balbo              -                                                   #
+# Gabriel Pires Miranda de Magalhães    -   201422040011                                    #
+# Thayane Pessoa Duarte                 -   201312040408                                    #
+# Victor de Oliveira Balbo              -   201422040178                                    #
 # Vinícius Magalhães D'Assunção         -   201422040232                                    #
 #############################################################################################
 
@@ -37,10 +37,9 @@ function toHex(){
 }
 
 #Porta do servidor
-PORT_SERVER=`echo -n $1`
-
+PORT_SERVER=$1
 #TMQ
-TMQ=`echo -n $2`
+TMQ=$2
 
 #Se não informar a porta
 if [ -z "$PORT_SERVER" ]; then
@@ -55,19 +54,31 @@ if [ -z "$TMQ" ]; then
 fi
 
 #Faixa de valores para o TMQ
-if [ "$TMQ" -lt "88" ] || [ "$TMQ" -gt "1542" ]; then
-    echo "O TMQ deve estar entre 88 e 1542"
+if [ "$TMQ" -lt "46" ] || [ "$TMQ" -gt "1500" ]; then
+    echo "O TMQ deve estar entre 46 e 1500"
     exit
 fi
 
+
+rm received.txt &> /dev/null
 # Espera a conexão do cliente da camada física
 while true; do
     echo "Esperando conexão..."
-    nc -l $PORT_SERVER > frame_o.txt
-    FILE_DATA=`cat frame_o.txt`
-    FILE_DATA=`toHex $FILE_DATA` # Cast Binary to HexDump
-    echo $FILE_DATA > frame_o.txt
-    xxd -p -r frame_o.txt > received.txt # Cast HexDump back to String
-    echo "Arquivo recebido."
-    rm frame_o.txt &> /dev/null
-done;
+    res=`nc -l $PORT_SERVER`
+    # Verifica se o cliente está solicitando o TMQ
+    if [ "$res" = "TMQ" ]; then
+    	echo "Cliente solicitou o TMQ. Enviando TMQ = ${TMQ}..."
+    	# Envia o TMQ para o cliente
+    	echo "$TMQ" | nc -l $PORT_SERVER
+    else 
+	    FILE_DATA=`echo "$res"`
+	    # Converte de binario para HexDump
+	    FILE_DATA=`toHex $FILE_DATA` 
+	    echo $FILE_DATA > frame_o.txt
+	    # Converte de HexDump para string
+	    xxd -p -r frame_o.txt >> received.txt
+	    echo "Arquivo recebido."
+	    rm frame_o.txt &> /dev/null
+	fi
+	echo -e "\n--------\n"
+done
