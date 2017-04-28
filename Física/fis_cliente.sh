@@ -51,7 +51,7 @@ function montaQuadro() {
     TAM_TIPO='0800'
 
     # MAC origem e destino - 6 bytes cada (pegar do ifconfig)
-    MAC_ORIG=`ifconfig | grep $IFACE | cut -d' ' -f9`
+    MAC_ORIG=`cat /sys/class/net/${IFACE}/address`
 
     #Se não encontrar o MAC de origem
     if [ -z "$MAC_ORIG" ]; then
