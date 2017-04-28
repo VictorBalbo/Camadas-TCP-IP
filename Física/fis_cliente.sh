@@ -70,7 +70,7 @@ function montaQuadro() {
     MAC_DEST=`arp $IP_SERVER | grep -E -o -e "([A-Za-z0-9]{2}:?){6}"`
     #Se não encontrar o MAC de destino
     if [ -z "$MAC_DEST" ]; then
-        MAC_DEST="00:00:00:00:00:00"
+        MAC_DEST=$MAC_ORIG
     fi
     echo "MAC do Destino: $MAC_DEST"
 
@@ -104,8 +104,6 @@ if [ -z "$PORT_SERVER" ]; then
 fi
 
 dados=`cat pacote.txt`
-
-
 
 # Remetente solicita TMQ enviando a mensagem TMQ ao destinatário.
 echo "Solicitando o TMQ..."
