@@ -74,11 +74,10 @@ while true; do
 	    FILE_DATA=`echo "$res"`
 	    # Converte de binario para HexDump
 	    FILE_DATA=`toHex $FILE_DATA` 
-	    echo $FILE_DATA > frame_o.txt
+	    echo $FILE_DATA > "quadro_out.txt"
 	    # Converte de HexDump para string
-	    xxd -p -r frame_o.txt >> received.txt
+	    xxd -p -r "quadro_out.txt" >> received.txt
 	    echo "Arquivo recebido."
-	    rm frame_o.txt &> /dev/null
 	fi
 	echo -e "\n--------\n"
 done

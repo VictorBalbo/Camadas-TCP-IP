@@ -45,10 +45,15 @@ function montaQuadro() {
 
     # PREAMBULO(hex), são 7 bytes. 10101010....
     PREAMBULO='aaaaaaaaaaaaaa'
+    echo "PREAMBULO(hex): $PREAMBULO"
+
     # SFD - Start of Frame(hex)- 1 byte
     SFD='ab'
+    echo "SFD(hex): $SFD"
+
     # Tamanho/tipo, neste caso, tipo ETHERNET 
     TAM_TIPO='0800'
+    echo "Tamanho/Tipo(hex): $TAM_TIPO"
 
     # MAC origem e destino - 6 bytes cada (pegar do ifconfig)
     MAC_ORIG=`cat /sys/class/net/${IFACE}/address`
@@ -74,9 +79,11 @@ function montaQuadro() {
     MAC_DEST=`echo $MAC_DEST | sed "s/://g"`
 
     #Monta o quadro Ethernet
-    echo -n "${PREAMBULO}${SFD}${MAC_DEST}${MAC_ORIG}${TAM_TIPO}${dados}" | xxd -p > frame_e.hex
+    echo -n "${PREAMBULO}${SFD}${MAC_DEST}${MAC_ORIG}${TAM_TIPO}${dados}" | xxd -p > quadroHex.hex
     #Calcula o CRC e adiciona no final do quadro
-    crc32 frame_e.hex | xxd -p >> frame_e.hex
+    CRC=`crc32 quadroHex.hex`
+    echo "$CRC" | xxd -p >> quadroHex.hex
+    echo "CRC(hex): $CRC"
 }
 
 
@@ -102,6 +109,7 @@ dados=`cat pacote.txt`
 
 # Remetente solicita TMQ enviando a mensagem TMQ ao destinatário.
 echo "Solicitando o TMQ..."
+sleep 1
 echo "TMQ" | nc "$IP_SERVER" "$PORT_SERVER"
 # Destinatário responde com o valor em bytes
 TMQ=`nc "$IP_SERVER" "$PORT_SERVER"`
@@ -109,9 +117,7 @@ echo "TMQ recebido. TMQ = $TMQ bytes"
 echo -e "\n--------\n"
 # Conta quantos bytes tem o arquivo
 tamanho=`echo "$dados" | wc -c`
-echo "tamanho = $tamanho"
-n_quadros=$((( tamanho / TMQ )))
-echo "nquadros = $n_quadros"
+n_quadros=$(( tamanho / TMQ ))
 # Envia n_envios quadros
 if [ "$tamanho" == "0" ]; then
 	n_quadros=1
@@ -121,7 +127,7 @@ for(( i=1; i <= $(( n_quadros )); i++ )); do
 	# Remetente verifica se há colisão (probabilidade). 
 	COLISAO=2
 	# Verifica se houve colisão
-	while [ "$COLISAO" = $(( RANDOM % 5 )) ]; do
+	while [ "$COLISAO" = $(( RANDOM % 4 )) ]; do
 		echo "Verificando Colisão..."
 		echo "Houve Colisão! Aguardando..."
 		# Aguarda tempo aleatório
@@ -130,17 +136,17 @@ for(( i=1; i <= $(( n_quadros )); i++ )); do
 	# Parte o arquivo
 	parte=`echo -n "$dados" | cut -c"$i"-"$(( i * TMQ ))"`
 	echo "Montando o quadro..."
-	rm frame_i.txt &> /dev/null
+	sleep 1
 	# monta o quadro
 	montaQuadro "$parte" "$IP_SERVER"
-	quadro=`cat frame_e.hex`
+	quadro=`cat quadroHex.hex`
 	# converte pra binário
 	arq_bin=`toBinary "$quadro"`
-	echo "$arq_bin" > frame_i.txt
+	echo "$arq_bin" > "quadro_in${i}.txt"
 	echo "Enviando o quadro..."
 	#Envia o quadro Ethernet no formato binário textual para o servidor da camada física
-	nc "$IP_SERVER" "$PORT_SERVER" < frame_i.txt
+	nc "$IP_SERVER" "$PORT_SERVER" < "quadro_in${i}.txt"
+	sleep 2
 	echo "Quadro Enviado."
 	echo -e "\n--------\n"
-	rm frame_i.txt &> /dev/null
 done
