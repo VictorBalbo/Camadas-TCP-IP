@@ -13,14 +13,14 @@ char ip_header[20]  = {0x45, 0x00, 0x01, 0xb9, 0xf7, 0x1c, 0x40, 0x00,
                        0x0a, 0x00, 0x7f, 0xda,  //IP de origem  [12..15]
                        0x0a, 0x00, 0x02, 0x69}; //IP de destino [16..19]
 
+// Formata a mensagem
 char *prepara_mensagem(char *msg) {
     char *nova_msg = new char[5000];
-
-    //Coloca o cabeçalho IP
+    // Coloca o cabeçalho IP
     bcopy(ip_header, nova_msg, 20);
-    //Coloca o cabeçalho TCP
+    // Coloca o cabeçalho TCP
     bcopy(tcp_header, nova_msg + 20, 32);
-    //Coloca a resposta HTTP
+    // Coloca a resposta HTTP
     bcopy(msg, nova_msg + 52, strlen(msg));
 
     return nova_msg;

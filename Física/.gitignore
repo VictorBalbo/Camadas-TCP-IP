@@ -2,3 +2,5 @@
 *.dat
 *.hex
 *.bin
+
+!README.txt
