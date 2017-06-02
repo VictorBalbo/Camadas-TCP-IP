@@ -1,0 +1,35 @@
+Alunos:
+	Gabriel Pires Miranda de Magalhães    -   201422040011
+	Thayane Pessoa Duarte                 -   201312040408
+	Victor de Oliveira Balbo              -   201422040178
+	Vinícius Magalhães D'Assunção         -   201422040232
+
+Instruções de execução:
+
+	1 - Abra dois terminais do linux.
+
+	2 - No primeiro terminal, acesse a pasta PC_A
+		2.1 - Execute no terminal: ./app 8080
+			OBS: O 8080 corresponde a porta para o BROWSER e pode se escolher outra, ex: 8081, 8082, etc.
+
+	3 - No segundo terminal, acesse a pasta PC_B execute o seguinte comando no terminal: ./fis_server.sh
+
+	4 - Abra o BROWSER
+		4.1 - O endereço se consiste em "IP":"PORTA"/"PAGINA", os utilizados foram: 
+			4.1.1 - 127.0.0.1:8080/cliente
+			4.1.2 - 127.0.0.1:8080/estoque
+			4.1.3 - 127.0.0.1:8080/ ou 127.0.0.1:8080/index
+			4.1.4 - 127.0.0.1:8080/"QualquerNome" que mostra pagina não encontrada.
+		4.2 - Acesse o endereço que desejar
+		4.3 - A página será exibida
+
+Fluxo:
+	1 - BROWSER solicita para camada de aplicação de PC_A a página
+	2 - camada de aplicação de PC_A solicita a página para a camada física de PC
+	3 - camada física de PC_A solicita a página para camada física de PC_B
+	4 - camada física de PC_B solicita a página para camada de aplicação de PC_B
+	5 - camada de aplicação de PC_B entrega a página em formato http para a camada fisica de PC_B
+	6 - camada física de PC_B envia o http para camada física de PC_A
+	7 - camada física de PC_A entrega o http para camada de aplicação de PC_A
+	8 - camada de aplicação de PC_A entrega o http para o BROWSER
+		
