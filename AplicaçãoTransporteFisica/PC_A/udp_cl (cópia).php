@@ -54,28 +54,14 @@ function criaSegmento($seq_num, $parte) {
     return $segmento;
 }
 
-function divideMensagem() {
-    global $mensagem;
-    $arquivo = fopen($mensagem, "r") or die("Unable to open file!");
-    $conteudo = fread($arquivo,filesize($mensagem));
-    fclose($arquivo);
-
-
+function divideMensagem($msg) {
     $segmentos = array();
-    $num_segmentos = strlen($conteudo) / TMS;
+    $num_segmentos = strlen($msg) / TMS;
     for ($i = 0; $i <= $num_segmentos; $i++) {
-        $parte = substr($conteudo, $i * TMS, TMS);
+        $parte = substr($msg, $i * TMS, TMS);
         array_push($segmentos, criaSegmento($i, $parte));
     }
-
-    foreach ($segmentos as $segmento) {
-        $seq_num = strtok($segmento, "\n");
-        $seg_name = SEGMENTO.$seq_num;
-        $arquivo = fopen($seg_name, "w") or die("Unable to open file!");
-        $conteudo = fwrite($arquivo, $segmento);
-        fclose($arquivo);
-    }
-
+    return $segmentos;
 } 
 
 function retiraCabecalho($segmento) {
@@ -107,5 +93,24 @@ function reconstruirMensagem($qtd_seg, $file_name) {
     // Le mensagem
     fclose($arquivo);
 }
-divideMensagem();
+
+// Le mensagem
+$arquivo = fopen($mensagem, "r") or die("Unable to open file!");
+$conteudo = fread($arquivo,filesize($mensagem));
+
+$segmentos = divideMensagem($conteudo);
+
+fclose($arquivo);
+
+
+// Le mensagem
+foreach ($segmentos as $segmento) {
+    $seq_num = strtok($segmento, "\n");
+    $seg_name = SEGMENTO.$seq_num;
+    $arquivo = fopen($seg_name, "w") or die("Unable to open file!");
+    $conteudo = fwrite($arquivo, $segmento);
+    fclose($arquivo);
+    system("./fis_client.sh ")
+}
+
 ?>

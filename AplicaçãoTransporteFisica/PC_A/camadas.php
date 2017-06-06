@@ -43,7 +43,7 @@ class TCP {
     const ACK = 0x0010;
     const URG = 0x0020;
 
-    const DATA_OFF = 5 << 12;
+    const DATA_OFF = 5000000000000;
 
     private $sr_port;
     private $dt_port;
@@ -59,6 +59,23 @@ class TCP {
 
     function __construct($porta, $conect, $isn = null) {
         $isn = (int)$isn;
+
+        if (($this->socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) === false)
+            throw_socket_exception();
+
+        if ($conect === true) {
+            if (socket_connect($this->socket, '127.0.0.1', $porta) === false)
+                throw_socket_exception($this->socket);
+        } else if ($conect === false) {
+            if (socket_bind($this->socket, '127.0.0.1', $porta) === false)
+                throw_socket_exception($this->socket);
+            if (socket_listen($this->socket) === false)
+                throw_socket_exception($this->socket);
+            $this->connection = $this->socket;
+            echo "Esperando conexão da camada de rede..." . PHP_EOL;
+            if (($this->socket = socket_accept($this->socket)) === false)
+                throw_socket_exception($this->connection);
+        }
 
         $this->seq_num = empty($isn) ? TCP::ISN() : ($isn & 0xFFFFFFFF);
         $this->control = TCP::DATA_OFF;
