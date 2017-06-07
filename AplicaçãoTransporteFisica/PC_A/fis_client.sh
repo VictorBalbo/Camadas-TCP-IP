@@ -43,9 +43,12 @@ IP_SERVER=`echo -n $1`
 PORT_SERVER=`echo -n $2`
 PORT_CLIENT=`echo -n $3`
 PORT_WEB=`echo -n $4`
-TMQ=`echo -n $5`
-ARQ_SOLICITADO=`echo -n $6`               # Nome do arquivo solicitado pela camada Fisica
+TMQ=128
+ARQ_SOLICITADO=`echo -n $5`               # Nome do arquivo solicitado pela camada Fisica
 IP_CLIENT=`ip route show default | grep "src" | awk '{print $9}'`
+PROTOCOLO=`echo -n $6`
+QTD_SEG=`echo -n $7`
+
 
 
 #Se não informar o IP_SERVER
@@ -67,140 +70,152 @@ if [ -z "$PORT_CLIENT" ]; then
 fi
 
 
-#-------------------------------------------------------------
-
-# Estabelece Conexão com o servidor e envia seu IP
-sleep 0.1
-echo "$IP_CLIENT" | nc "$IP_SERVER" "$PORT_SERVER"
 
 
-# Envia sua Porta para o servidor
-sleep 0.1
-echo "$PORT_CLIENT" | nc "$IP_SERVER" "$PORT_SERVER"
+function envia() {
+	#-------------------------------------------------------------
 
-
-# Recebe confirmação do IP pelo servidor
-RESPOSTA=`nc -l "$PORT_CLIENT"`
-
-# Caso a confirmação do IP seja realizada, continua a execuçao
-if [ "$RESPOSTA" = "$IP_CLIENT" ]; then
-	echo "IP Ok!"
+	# Estabelece Conexão com o servidor e envia seu IP
 	sleep 0.1
-	echo "1" | nc "$IP_SERVER" "$PORT_SERVER"
+	echo "$IP_CLIENT" | nc "$IP_SERVER" "$PORT_SERVER"
 
-	# Recebe confirmação da Porta pelo servidor
+
+	# Envia sua Porta para o servidor
+	sleep 0.1
+	echo "$PORT_CLIENT" | nc "$IP_SERVER" "$PORT_SERVER"
+
+
+	# Recebe confirmação do IP pelo servidor
 	RESPOSTA=`nc -l "$PORT_CLIENT"`
 
-	# Caso a confirmação da Porta seja realizada, continua a execuçao
-	if [ "$RESPOSTA" = "$PORT_CLIENT" ]; then
-		echo "Porta Ok!"
+	# Caso a confirmação do IP seja realizada, continua a execuçao
+	if [ "$RESPOSTA" = "$IP_CLIENT" ]; then
+		echo "IP Ok!"
 		sleep 0.1
 		echo "1" | nc "$IP_SERVER" "$PORT_SERVER"
 
-		# Envia TMQ para o servidor
-		sleep 0.1
-		echo "$TMQ" | nc "$IP_SERVER" "$PORT_SERVER"
-		# Recebe confirmação da TMQ pelo servidor
+		# Recebe confirmação da Porta pelo servidor
 		RESPOSTA=`nc -l "$PORT_CLIENT"`
-		# Caso a confirmação do TMQ seja realizada, continua a execuçao
-		if [ "$RESPOSTA" = "$TMQ" ]; then
-			echo "TMQ OK!"
+
+		# Caso a confirmação da Porta seja realizada, continua a execuçao
+		if [ "$RESPOSTA" = "$PORT_CLIENT" ]; then
+			echo "Porta Ok!"
 			sleep 0.1
 			echo "1" | nc "$IP_SERVER" "$PORT_SERVER"
 
-			# Envia nome do arquivo
+			# Envia TMQ para o servidor
 			sleep 0.1
-			echo "$ARQ_SOLICITADO" | nc "$IP_SERVER" "$PORT_SERVER"
-
-			# Recebe confirmação do Nome do arquivo pelo servidor
+			echo "$TMQ" | nc "$IP_SERVER" "$PORT_SERVER"
+			# Recebe confirmação da TMQ pelo servidor
 			RESPOSTA=`nc -l "$PORT_CLIENT"`
-			# Caso a confirmação do Nome do arquivo seja realizada, continua a execuçao
-			if [ "$RESPOSTA" = "$ARQ_SOLICITADO" ]; then
-				echo "Nome do arquivo OK!"
+			# Caso a confirmação do TMQ seja realizada, continua a execuçao
+			if [ "$RESPOSTA" = "$TMQ" ]; then
+				echo "TMQ OK!"
 				sleep 0.1
-				echo $PORT_WEB | nc "$IP_SERVER" "$PORT_SERVER"
+				echo "1" | nc "$IP_SERVER" "$PORT_SERVER"
 
-				# Espera a solicitacao da Qtd de quadros
-                QTD=`nc -l $PORT_CLIENT`
+				# Envia nome do arquivo
+				sleep 0.1
+				echo "$ARQ_SOLICITADO" | nc "$IP_SERVER" "$PORT_SERVER"
 
-                # Envia confirmação da Qtd de quadros ao cliente
-                sleep 0.1
-                echo "$QTD" | nc "$IP_SERVER" "$PORT_SERVER" 
+				# Recebe confirmação do Nome do arquivo pelo servidor
+				RESPOSTA=`nc -l "$PORT_CLIENT"`
+				# Caso a confirmação do Nome do arquivo seja realizada, continua a execuçao
+				if [ "$RESPOSTA" = "$ARQ_SOLICITADO" ]; then
+					echo "Nome do arquivo OK!"
+					sleep 0.1
+					echo $PORT_WEB | nc "$IP_SERVER" "$PORT_SERVER"
 
-                # Espera confirmação da Qtd de quadros
-                OK=`nc -l $PORT_CLIENT`
+					# Espera a solicitacao da Qtd de quadros
+	                QTD=`nc -l $PORT_CLIENT`
 
-                if [ "$OK" = "1" ]; then
-                    echo "Qtd de quadros Ok!"
+	                # Envia confirmação da Qtd de quadros ao cliente
+	                sleep 0.1
+	                echo "$QTD" | nc "$IP_SERVER" "$PORT_SERVER" 
 
-					# Recebe os arquivos
-					for(( i=1; i <= $(( QTD )); i++ )); do
-					    # Recebe o arquivo
-					    quadro=`nc -l $PORT_CLIENT`
-					    
-					    # Envia confirmação do recebimento do quadro ao cliente
-                		sleep 0.1
-                		echo "1" | nc "$IP_SERVER" "$PORT_SERVER" 
+	                # Espera confirmação da Qtd de quadros
+	                OK=`nc -l $PORT_CLIENT`
 
-						# Espera confirmação da Qtd de quadros
-		                OK=`nc -l $PORT_CLIENT`
+	                if [ "$OK" = "1" ]; then
+	                    echo "Qtd de quadros Ok!"
 
-		                if [ "$OK" = "1" ]; then
-		                    echo "Quadro Ok!"
-
-						    # Converte de binario para HexDump
-						    FILE_DATA=`toHex "$quadro"` 
-						    echo "$FILE_DATA" > "quadro_in.txt"
-										    
-						    # Converte de HexDump para string
-						    xxd -p -r "quadro_in.txt" > aux.txt
-						    aux=`cat aux.txt`
-						    aux=`echo "${aux:44}"` 	# Remove campos do RFC do inicio do quadro 
-						    aux=`echo "${aux::-8}"` 	# Remove o CRC do final do quadro
-
-		                    # Apaga o arquivo desatualizado se existir
-						    rm $ARQ_SOLICITADO &> /dev/null
-
-						    echo "$aux" >> $ARQ_SOLICITADO 
+						# Recebe os arquivos
+						for(( i=1; i <= $(( QTD )); i++ )); do
+						    # Recebe o arquivo
+						    quadro=`nc -l $PORT_CLIENT`
 						    
-						    echo -e "\n--------\n"
-						    rm aux.txt &> /dev/null
-						    rm quadro_in.txt &> /dev/null
+						    # Envia confirmação do recebimento do quadro ao cliente
+	                		sleep 0.1
+	                		echo "1" | nc "$IP_SERVER" "$PORT_SERVER" 
 
-						# Caso a confirmação do quadro não seja realizada, finaliza a execuçao
-		                else
-		                    echo "Falha na conexão Envio de quadro"
-		                fi
-					done
+							# Espera confirmação da Qtd de quadros
+			                OK=`nc -l $PORT_CLIENT`
+
+			                if [ "$OK" = "1" ]; then
+			                    echo "Quadro Ok!"
+
+							    # Converte de binario para HexDump
+							    FILE_DATA=`toHex "$quadro"` 
+							    echo "$FILE_DATA" > "quadro_in.txt"
+											    
+							    # Converte de HexDump para string
+							    xxd -p -r "quadro_in.txt" > aux.txt
+							    aux=`cat aux.txt`
+							    aux=`echo "${aux:44}"` 	# Remove campos do RFC do inicio do quadro 
+							    aux=`echo "${aux::-8}"` 	# Remove o CRC do final do quadro
+
+			                    # Apaga o arquivo desatualizado se existir
+							    rm $ARQ_SOLICITADO &> /dev/null
+
+							    echo "$aux" >> $ARQ_SOLICITADO 
+							    
+							    echo -e "\n--------\n"
+							    rm aux.txt &> /dev/null
+							    rm quadro_in.txt &> /dev/null
+
+							# Caso a confirmação do quadro não seja realizada, finaliza a execuçao
+			                else
+			                    echo "Falha na conexão Envio de quadro"
+			                fi
+						done
 
 
-                # Caso a confirmação da Qtd de quadros não seja realizada, finaliza a execuçao
-                else
-                    echo "Falha na conexão Qtd de quadros diverge"
-                fi
+	                # Caso a confirmação da Qtd de quadros não seja realizada, finaliza a execuçao
+	                else
+	                    echo "Falha na conexão Qtd de quadros diverge"
+	                fi
+
+				else
+					echo "Falha na conexão Nome do arquivo diverge"
+					sleep 0.1
+					echo "0" | nc "$IP_SERVER" "$PORT_SERVER"
+				fi
 
 			else
-				echo "Falha na conexão Nome do arquivo diverge"
+				echo "Falha na conexão TMQ diverge"
 				sleep 0.1
 				echo "0" | nc "$IP_SERVER" "$PORT_SERVER"
 			fi
 
+		# Caso a confirmação da Porta não seja realizada, finaliza a execuçao
 		else
-			echo "Falha na conexão TMQ diverge"
+			echo "Falha na conexão Porta diverge"
 			sleep 0.1
 			echo "0" | nc "$IP_SERVER" "$PORT_SERVER"
 		fi
 
-	# Caso a confirmação da Porta não seja realizada, finaliza a execuçao
+	# Caso a confirmação do IP não seja realizada, finaliza a execuçao
 	else
-		echo "Falha na conexão Porta diverge"
+		echo "Falha na conexão IP diverge"
 		sleep 0.1
 		echo "0" | nc "$IP_SERVER" "$PORT_SERVER"
 	fi
+}
 
-# Caso a confirmação do IP não seja realizada, finaliza a execuçao
-else
-	echo "Falha na conexão IP diverge"
-	sleep 0.1
-	echo "0" | nc "$IP_SERVER" "$PORT_SERVER"
+
+if [ "$PROTOCOLO" = "udp" ]; then
+	for (( i=0 ; i<${QTD_SEG} ; i+=1 )); do 
+		segmento=`cat segmento"$i"`
+		$ARQ_SOLICITADO
+	done
 fi

@@ -11,9 +11,8 @@
 using namespace std;
 FILE *openfile;
 
-#define PORTA_FISICA_SV "7070"
-#define PORTA_FISICA_CL "7171"
-#define TMQ "1000"
+#define PROTOCOLO_TCP "tcp"
+#define PROTOCOLO_UDP "udp"
 
 int main(int argc, char **argv) {
     int sockfd, newsockfd, portno;
@@ -23,8 +22,8 @@ int main(int argc, char **argv) {
     struct sockaddr_in serv_addr, cli_addr;
     int  n;
 
-    if (argc < 2) {
-        printf("Execução: ./app_sr porta_escutada\n");
+    if (argc < 3) {
+        printf("Execução: ./app_sr protocolo porta_escutada\n");
         exit(1);
     }
 
@@ -38,7 +37,7 @@ int main(int argc, char **argv) {
 
     /* Initialize socket structure */
     bzero((char *) &serv_addr, sizeof(serv_addr));
-    portno = atoi(argv[1]);
+    portno = atoi(argv[2]);
 
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
@@ -68,67 +67,91 @@ int main(int argc, char **argv) {
         /* If connection is established then start communicating */
         bzero(buffer, 1024);
         n = read(newsockfd, buffer, 1024);
-		//Ignoring favicon requests
-		if(strstr(buffer,"favicon")!=NULL){close(newsockfd); continue;}
+        //Ignoring favicon requests
+        if(strstr(buffer,"favicon")!=NULL){close(newsockfd); continue;}
         if (n < 0) {
             perror("ERROR reading from socket");
             exit(1);
         }
         /****METODO DA REQUISIÇAO**/
-		cout << buffer << endl;
+        cout << buffer << endl;
+
         char *metodo  = strtok(buffer, " ");
 
         /****FILE SERVER**/
         strcpy(fileserver, strtok(NULL, " "));
-		
+        
         if (strcmp(fileserver, "/") == 0 ) //arquivo padrao do servidor
             strcpy(fileserver, "/index");
 
-		//remover a '/'
-		for(int i=0; fileserver[i] != '\0'; i++)
-			fileserver[i] = fileserver[i+1];
+        //remover a '/'
+        for(int i=0; fileserver[i] != '\0'; i++)
+            fileserver[i] = fileserver[i+1];
         
-		/****HOST SERVER**/
+        /****HOST SERVER**/
         strtok(NULL, "\r\n");
         char *hostname = strtok(NULL, "\r\n");
         strtok(hostname, " ");
         hostname = strtok(NULL, "");
 
-		char temp[20];
-		strcpy(temp, hostname);
-		char *ip = strtok(temp, ":");
-		char *porta = strtok(NULL, ":\r\n ");
-	
+        char temp[20];
+        strcpy(temp, hostname);
+        char *ip = strtok(temp, ":");
+        char *porta = strtok(NULL, ":\r\n ");
+    
         cout << "Método: " << metodo << endl;
-		cout << "IP: " << ip << endl;
-		cout << "Porta: " << porta << endl;
+        cout << "IP: " << ip << endl;
+        cout << "Porta: " << porta << endl;
         cout << "Host: " << hostname << endl;
-		cout << "Arquivo: " << fileserver << endl;
+        cout << "Arquivo: " << fileserver << endl;
 
+
+        
+        // escrever o buffer no arquivo mensagem
+        FILE* mensagem = fopen ("mensagem", "w+");
+        char* ptr = strtok(buffer, "\r\n");
+        while (ptr != NULL) {
+            fprintf(mensagem, "%s\n", buffer);
+            ptr = strtok(NULL, "\r\n");
+        }
+        fclose(mensagem);
+
+        
 // CHAMAR CAMADA FISICA PARA SOLICITAÇÃO DO ARQUIVO HTML
-        //char solicitacao[1024] = "./fis_client.sh ";
-	char solicitacao[1024] = "./tcp_cl.php ";
-        strcat(solicitacao, ip);
-        strcat(solicitacao, " ");/*
-		strcat(solicitacao, PORTA_FISICA_SV);
-        strcat(solicitacao, " ");
-		strcat(solicitacao, PORTA_FISICA_CL);
-        strcat(solicitacao, " ");*/
-		strcat(solicitacao, porta);
-        /*strcat(solicitacao, " ");
-		strcat(solicitacao, TMQ);*/
-        strcat(solicitacao, " ");
-        strcat(solicitacao, fileserver);
-		system(solicitacao);
+        char protocolo[4];
+        char porta_escutada[16]; 
+        strcpy(protocolo, argv[1]);
+        strcpy(porta_escutada, argv[2]);
+        printf("\nProtocolo: %s\n", protocolo);
+        printf("\nPorta escutada: %s\n", porta_escutada);
+        if (strcmp (protocolo, PROTOCOLO_UDP) == 0){
+            //php udp_cl.php acao porta_origem ip_destino porta_destino mensagem qtd_seg(acao=reconstruir) 
+            char solicitacao[1024] = "php udp_cl.php dividir ";
+            strcat(solicitacao, porta_escutada);
+            strcat(solicitacao, " ");
+            strcat(solicitacao, ip);
+            strcat(solicitacao, " ");
+            strcat(solicitacao, porta);
+            strcat(solicitacao, " ");
+            strcat(solicitacao, "mensagem");
+            system(solicitacao);
+        } else {
+            char solicitacao[1024] = "php tcp_cl.php dividir ";
+            strcat(solicitacao, porta_escutada);
+            strcat(solicitacao, ip);
+            strcat(solicitacao, porta);
+            strcat(solicitacao, fileserver);
+            system(solicitacao);
+        }
 // SALVAR EM /index.http
 
 
-		string caminho = string("./") + string(fileserver);
-		char linha[300] = "", result[1024] = "";
-		openfile = fopen (caminho.c_str(), "r");
-		while (fgets(linha, 300, openfile) != NULL)
-		        strcat(result, linha);          // append the new data
-		fclose(openfile);
+        string caminho = string("./") + string(fileserver);
+        char linha[300] = "", result[1024] = "";
+        openfile = fopen (caminho.c_str(), "r");
+        while (fgets(linha, 300, openfile) != NULL)
+                strcat(result, linha);          // append the new data
+        fclose(openfile);
 
       
         n = write(newsockfd, result, strlen(result));
@@ -138,7 +161,7 @@ int main(int argc, char **argv) {
             exit(1);
         }
 
-        close(newsockfd); 	
+        close(newsockfd);   
         cout << "Aguardando requisição...\n";
     }
     return 0;
