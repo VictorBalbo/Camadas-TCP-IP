@@ -13,6 +13,9 @@ FILE *openfile;
 
 #define PROTOCOLO_TCP "tcp"
 #define PROTOCOLO_UDP "udp"
+#define PORTA_ORIGEM  "5000"
+
+
 
 int main(int argc, char **argv) {
     int sockfd, newsockfd, portno;
@@ -22,8 +25,9 @@ int main(int argc, char **argv) {
     struct sockaddr_in serv_addr, cli_addr;
     int  n;
 
-    if (argc < 3) {
-        printf("Execução: ./app_sr protocolo porta_escutada\n");
+    if (argc < 5) {
+        printf("*** Camada de Aplicação ***\n");
+        printf("Execução: ./app_sr protocolo ip_destino porta_destino(fisica) porta_aplicacao(browser)\n");
         exit(1);
     }
 
@@ -37,7 +41,7 @@ int main(int argc, char **argv) {
 
     /* Initialize socket structure */
     bzero((char *) &serv_addr, sizeof(serv_addr));
-    portno = atoi(argv[2]);
+    portno = atoi(argv[4]);
 
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
@@ -74,7 +78,7 @@ int main(int argc, char **argv) {
             exit(1);
         }
         /****METODO DA REQUISIÇAO**/
-        cout << buffer << endl;
+        //cout << buffer << endl;
 
         char *metodo  = strtok(buffer, " ");
 
@@ -105,46 +109,31 @@ int main(int argc, char **argv) {
         cout << "Host: " << hostname << endl;
         cout << "Arquivo: " << fileserver << endl;
 
-
-        
-        // escrever o buffer no arquivo mensagem
-        FILE* mensagem = fopen ("mensagem", "w+");
-        char* ptr = strtok(buffer, "\r\n");
-        while (ptr != NULL) {
-            fprintf(mensagem, "%s\n", buffer);
-            ptr = strtok(NULL, "\r\n");
-        }
+        // Escreve os dados da requisicao no arquivo mensagem
+        FILE* mensagem = fopen ("mensagem", "w");
+        fprintf(mensagem, "%s\n", metodo);
+        fprintf(mensagem, "%s\n", ip);
+        fprintf(mensagem, "%s\n", porta);
+        fprintf(mensagem, "%s\n", hostname);
+        fprintf(mensagem, "%s\n", fileserver);
         fclose(mensagem);
-
         
-// CHAMAR CAMADA FISICA PARA SOLICITAÇÃO DO ARQUIVO HTML
         char protocolo[4];
-        char porta_escutada[16]; 
+        char porta_destino[5];
+        char ip_destino[17];
         strcpy(protocolo, argv[1]);
-        strcpy(porta_escutada, argv[2]);
-        printf("\nProtocolo: %s\n", protocolo);
-        printf("\nPorta escutada: %s\n", porta_escutada);
-        if (strcmp (protocolo, PROTOCOLO_UDP) == 0){
-            //php udp_cl.php acao porta_origem ip_destino porta_destino mensagem qtd_seg(acao=reconstruir) 
-            char solicitacao[1024] = "php udp_cl.php dividir ";
-            strcat(solicitacao, porta_escutada);
-            strcat(solicitacao, " ");
-            strcat(solicitacao, ip);
-            strcat(solicitacao, " ");
-            strcat(solicitacao, porta);
-            strcat(solicitacao, " ");
-            strcat(solicitacao, "mensagem");
-            system(solicitacao);
-        } else {
-            char solicitacao[1024] = "php tcp_cl.php dividir ";
-            strcat(solicitacao, porta_escutada);
-            strcat(solicitacao, ip);
-            strcat(solicitacao, porta);
-            strcat(solicitacao, fileserver);
-            system(solicitacao);
-        }
+        strcpy(ip_destino, argv[2]);
+        strcpy(porta_destino, argv[3]);
+        char solicitacao[1024] = "php trans_cl.php ";
+        strcat(solicitacao, protocolo);
+        strcat(solicitacao, " ");
+        strcat(solicitacao, PORTA_ORIGEM); 
+        strcat(solicitacao, " ");
+        strcat(solicitacao, ip_destino); 
+        strcat(solicitacao, " ");
+        strcat(solicitacao, porta_destino);
+        system(solicitacao);
 // SALVAR EM /index.http
-
 
         string caminho = string("./") + string(fileserver);
         char linha[300] = "", result[1024] = "";
