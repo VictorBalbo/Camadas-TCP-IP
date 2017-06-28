@@ -11,6 +11,7 @@
 # Vinícius Magalhães D'Assunção         -   201422040232                                    #
 #############################################################################################
 
+
 function toBinary(){
     binary="";
     for (( i=0 ; i<${#1} ; i++ )); do 
@@ -101,19 +102,20 @@ function montaQuadro() {
         MAC_DEST=$MAC_ORIG
     fi
     echo "MAC do Destino: $MAC_DEST"
-
     #Remove os ':' dos MACs
     MAC_ORIG=`echo $MAC_ORIG | sed "s/://g"`
     MAC_DEST=`echo $MAC_DEST | sed "s/://g"`
 
+    cabecalho=`echo -n "${PREAMBULO}${SFD}${MAC_DEST}${MAC_ORIG}${TAM_TIPO}"`
+    echo "cabecalho: $cabecalho"
+    tam_cabecalho=${#cabecalho}
     #Monta o quadro Ethernet
-    echo -n "${PREAMBULO}${SFD}${MAC_DEST}${MAC_ORIG}${TAM_TIPO}${dados}" | xxd -p > quadro_hex.hex
+    echo -n "${tam_cabecalho}${cabecalho}${dados}" | xxd -p > quadro_hex.hex
     #Calcula o CRC e adiciona no final do quadro
     CRC=`crc32 quadro_hex.hex`
     echo "$CRC" | xxd -p >> quadro_hex.hex
     echo "CRC(hex): $CRC"
 }
-
 
 function enviaPacotes() {
     PORTA_ORIGEM=`echo -n $1`
@@ -128,8 +130,10 @@ function enviaPacotes() {
     set -- $pacotes
     qtd_pacotes=`echo $#`
 
+    echo "Qtd pacotes: $qtd_pacotes"
+
     # Envia a quantidade de pacotes
-    sleep 0.1
+    sleep 0.05
     echo "$qtd_pacotes" | nc "$IP_DESTINO" "$PORTA_DESTINO"
     echo "echo 2"
     # Recebe confirmação da qtd_pacotes pelo servidor
@@ -138,10 +142,10 @@ function enviaPacotes() {
     # Caso a confirmação da quantidade de pacotes seja realizada, continua a execuçao
     if [ "$RESPOSTA" = "$qtd_pacotes" ]; then
         echo "Quantidade de Pacotes OK!"
-        sleep 0.1
+        sleep 0.05
         echo "1" | nc "$IP_DESTINO" "$PORTA_DESTINO"
 
-        for pct in "$pacotes"; do
+        for pct in `ls | grep -h ^pacote[0-9]*$`; do
             pacote=`cat $pct`
 
             # Calcula quantos quadros serao enviados
@@ -149,7 +153,7 @@ function enviaPacotes() {
             QTD=$(( (tamanho / TMQ) + 1 ))
 
             # Envia Qtd de quadros para o servidor
-            sleep 0.1
+            sleep 0.05
             echo "$QTD" | nc "$IP_DESTINO" "$PORTA_DESTINO"
 
             # Recebe confirmação da Qtd de quadros pelo servidor
@@ -158,12 +162,12 @@ function enviaPacotes() {
             # Caso a confirmação da Qtd de quadros seja realizada, continua a execuçao
             if [ "$RESPOSTA" = "$QTD" ]; then
                 echo "Qtd de quadros OK"                        
-                sleep 0.1
+                sleep 0.05
                 echo "1" | nc "$IP_DESTINO" "$PORTA_DESTINO"
                 echo -e "\n--------\n"                          
 
                 # Recebe quantidade QTD de quadros
-                for(( i=1; i <= $(( QTD )); i++ )); do
+                for(( i=0; i < $(( QTD )); i++ )); do
                     # Remetente verifica se há colisão (probabilidade). 
                     COLISAO=2
                     # Verifica se houve colisão
@@ -171,28 +175,34 @@ function enviaPacotes() {
                         echo "Verificando Colisão..."
                         echo "Houve Colisão! Aguardando..."
                         # Aguarda tempo aleatório
-                        sleep $((( RANDOM % 3 ) + 1))
+                        sleep $((( RANDOM % 20 + 1)/10))
                     done
                     
                     # Parte o arquivo
-                    parte=`echo "$pacote" | cut -c"$i"-"$(( i * TMQ ))"`
+                    parte=${pacote:$(( i * TMQ)):TMQ}
                     
+                    echo "Parte $i: $parte"
+                    echo "---------------"  
+                    
+
                     # Monta o quadro
-                    montaQuadro "$parte" "$IP_SERVER"
+                    montaQuadro "$parte" "$IP_CLIENT"
                     quadro=`cat quadro_hex.hex`
                     rm "quadro_hex.hex" &> /dev/null
                     
                     # converte pra binário
                     arq_bin=`toBinary "$quadro"`
-                    echo "$arq_bin" > "quadro_out${i}.txt"
+                    echo -n "$arq_bin" > "quadro_out${i}.txt"
 
                     # Salva quadro em uma variavel
                     quadro=`cat "quadro_out${i}.txt"`
                     # Apaga arquivo temporario
                     rm "quadro_out${i}.txt" &> /dev/null
                     #Envia o quadro para o cliente
-                    sleep 0.1
-                    echo "$quadro" | nc "$IP_DESTINO" "$PORTA_DESTINO"
+                    sleep 0.05
+
+
+                    echo -n "$quadro" | nc "$IP_DESTINO" "$PORTA_DESTINO"
                     
                     # Recebe confirmação de recebimento do quadro pelo servidor
                     RESPOSTA=`nc -l "$PORTA_ORIGEM"`
@@ -200,11 +210,11 @@ function enviaPacotes() {
                     # Caso a confirmação da Qtd de quadros seja realizada, continua a execuçao
                     if [ "$RESPOSTA" = "1" ]; then
                         echo "Quadro OK"
-                        sleep 0.1
+                        sleep 0.05
                         echo "1" | nc "$IP_DESTINO" "$PORTA_DESTINO"
                     else
                         echo "Falha na conexão Envio de quadro"
-                        sleep 0.1
+                        sleep 0.05
                         echo "0" | nc "$IP_DESTINO" "$PORTA_DESTINO"
                     fi
                     echo -e "\n--------\n"
@@ -212,7 +222,7 @@ function enviaPacotes() {
                 done        # fim for quadros de um pacote
             else
                 echo "Falha na conexão Qtd de quadros diverge"
-                sleep 0.1
+                sleep 0.05
                 echo "0" | nc "$IP_DESTINO" "$PORTA_DESTINO"
             fi
             # apaga pacotes
@@ -223,7 +233,12 @@ function enviaPacotes() {
     fi
 }
 
+
+
+
 function recebePacotes() {
+    # remove todos os pacotes da pasta
+    for i in `ls | grep -h ^pacote[0-9]*$`; do rm $i; done
     PORTA_ORIGEM=`echo -n $1`
     IP_DESTINO=`echo -n $2`
     PORTA_DESTINO=`echo -n $3`
@@ -232,7 +247,7 @@ function recebePacotes() {
     qtd_pacotes=`nc -l "$PORTA_ORIGEM"`
 
     # Envia confirmação do nome do arquivo ao cliente
-    sleep 0.1
+    sleep 0.05
     echo "$qtd_pacotes" | nc "$IP_DESTINO" "$PORTA_DESTINO"
 
     # Espera confirmação do nome do arquivo
@@ -246,7 +261,7 @@ function recebePacotes() {
             QTD=`nc -l "$PORTA_ORIGEM"`
 
             # Envia confirmação da Qtd de quadros ao cliente
-            sleep 0.1
+            sleep 0.05
             echo "$QTD" | nc "$IP_DESTINO" "$PORTA_DESTINO"
 
             # Espera confirmação da Qtd de quadros
@@ -261,30 +276,36 @@ function recebePacotes() {
                     quadro=`nc -l "$PORTA_ORIGEM"`
                     
                     # Envia confirmação do recebimento do quadro ao cliente
-                    sleep 0.1
+                    sleep 0.05
                     echo "1" | nc "$IP_DESTINO" "$PORTA_DESTINO"
 
                     # Espera confirmação da Qtd de quadros
                     OK=`nc -l "$PORTA_ORIGEM"`
 
                     if [ "$OK" = "1" ]; then
+
                         echo "Quadro Ok!"
 
                         # Converte de binario para HexDump
                         FILE_DATA=`toHex "$quadro"` 
-                        echo "$FILE_DATA" > "quadro_in.txt"
-                                        
+                        echo -n "$FILE_DATA" > "quadro_in.txt"
+                                      
                         # Converte de HexDump para string
-                        xxd -p -r "quadro_in.txt" > aux.txt
-                        aux=`cat aux.txt`
-                        aux=`echo "${aux:44}"`  # Remove campos do RFC do inicio do quadro 
+                        #xxd -p -r "quadro_in.txt" > "aux.txt"
+                        #aux=`cat aux.txt`
+                        aux=`xxd -p -r "quadro_in.txt"`
+                        tam_cabecalho=`echo "${aux::2}"`
+                        echo "Tamanho cabecalho: $tam_cabecalho"
+                        echo "aux: $aux"
+                        aux=`echo "${aux:tam_cabecalho}"`  # Remove campos do RFC do inicio do quadro 
+                        aux=`echo "${aux:2}"`  # Remove campos do RFC do inicio do quadro 
                         aux=`echo "${aux::-8}"`     # Remove o CRC do final do quadro
-
+                        echo "Aux $i: $aux"
+                        echo "---------------"
                         # Apaga o arquivo desatualizado se existir
                         #rm $ARQ_SOLICITADO &> /dev/null
 
-                        echo "$aux" >> "pacote""$j"
-                        echo "Pacote $j"                        
+                        echo -n "$aux" >> "pacote""$j"
                         echo -e "\n--------\n"
                         rm aux.txt &> /dev/null
                         rm quadro_in.txt &> /dev/null
@@ -321,7 +342,7 @@ while true; do
     echo "Porta Recebido $PORT_CLIENT"
 
     # Envia confirmação do IP ao cliente
-    sleep 0.1
+    sleep 0.05
     echo "$IP_CLIENT" | nc "$IP_CLIENT" "$PORT_CLIENT"
 
     # Espera confirmação do IP
@@ -330,7 +351,7 @@ while true; do
         echo "IP Ok!"
 
         # Envia confirmação da Porta ao cliente
-        sleep 0.1
+        sleep 0.05
         echo "$PORT_CLIENT" | nc "$IP_CLIENT" "$PORT_CLIENT"
         
         # Espera confirmação da Porta
@@ -344,7 +365,7 @@ while true; do
             TMQ=`nc -l $PORT_SERVER`
             
             # Envia confirmação do TMQ ao cliente
-            sleep 0.1
+            sleep 0.05
             echo "$TMQ" | nc "$IP_CLIENT" "$PORT_CLIENT" 
 
             # Espera confirmação do TMQ
@@ -357,7 +378,7 @@ while true; do
                 ARQ=`nc -l $PORT_SERVER`
 
                 # Envia confirmação do nome do arquivo ao cliente
-                sleep 0.1
+                sleep 0.05
                 echo "$ARQ" | nc "$IP_CLIENT" "$PORT_CLIENT" 
 
                 # Espera confirmação do nome do arquivo
@@ -370,7 +391,7 @@ while true; do
                     PROTOCOLO=`nc -l $PORT_SERVER`
 
                     # Envia confirmação do protocolo ao cliente
-                    sleep 0.1
+                    sleep 0.05
                     echo "$PROTOCOLO" | nc "$IP_CLIENT" "$PORT_CLIENT" 
 
                     # Espera confirmação do protocolo
@@ -381,8 +402,8 @@ while true; do
 
         #---------------------------------------------------------------------------------
                         recebePacotes "$PORT_SERVER" "$IP_CLIENT" "$PORT_CLIENT"
-                        #./teste.sh
                         enviaPacotes "$PORT_SERVER" "$IP_CLIENT" "$PORT_CLIENT"
+                        #./teste.sh
         #---------------------------------------------------------------------------------
 
                     # Caso a confirmação do Protocolo não seja realizada, finaliza a execuçao
