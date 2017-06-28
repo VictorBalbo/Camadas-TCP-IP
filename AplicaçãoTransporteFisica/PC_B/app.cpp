@@ -9,7 +9,6 @@
 #include <unistd.h>
 
 //Constantes de entrada
-#define IP argv[1]
 #define PORTA argv[2]
 #define FILESERVER argv[3]
 
@@ -17,10 +16,20 @@ using namespace std;
 FILE *openfile;
 
 int main(int argc, char **argv) {
-	char resultcode[50];
+	char resultcode[50], linha[300] = "", result[1024] = "";
+    openfile = fopen ("./mensagem", "r");
+    while (fgets(linha, 300, openfile) != NULL){
+            strcat(result, linha);          // append the new data
+    }
+    fclose(openfile);
+    char *metodo = strtok(result, "\n");
+    char *ip = strtok(NULL, "\n");
+    char *porta = strtok(NULL, "\n");
+    char *hostname = strtok(NULL, "\n");
+    char *fileserver = strtok(NULL, "\n");
 
 	/***Le arquivo html no servidor**/
-	string caminho = string("./") + string(FILESERVER) + string(".html");
+	string caminho = string("./") + string(fileserver) + string(".html");
 
 	openfile = fopen (caminho.c_str(), "r");
 	if (openfile) {
@@ -30,16 +39,16 @@ int main(int argc, char **argv) {
 	    openfile = fopen ("404.html", "r");
 	}
 
-	char  linha[300] = "", html[1024] = "";
+	char  html[1024] = "";
 
 	while (fgets(linha, 300, openfile) != NULL)
 	    strcat(html, linha);          // append the new data
 
 	fclose(openfile);
+	system("rm mensagem");
 
-	caminho = string("./") + string(FILESERVER);
-	openfile = fopen (caminho.c_str(), "w");
-	fprintf(openfile, "HTTP/1.1 %s\r\nLocation: http://%s:%s\r\nDate: %s %s\r\nServer: Apache/2.2.22\r\nContent-Type: text/html\r\nConnection: close\r\n%s", resultcode, IP, PORTA, __DATE__, __TIME__, html);
+	openfile = fopen ("./mensagem", "w");
+	fprintf(openfile, "HTTP/1.1 %s\r\nLocation: http://%s:%s\r\nDate: %s %s\r\nServer: Apache/2.2.22\r\nContent-Type: text/html\r\nConnection: close\r\n\n%s", resultcode, ip, porta, __DATE__, __TIME__, html);
 	fclose(openfile);
 
     return 0;

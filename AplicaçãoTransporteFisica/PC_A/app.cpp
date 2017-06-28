@@ -8,6 +8,10 @@
 #include <string.h>
 #include <unistd.h>
 
+//#include <sys/socket.h>
+//#include <netinet/in.h>
+#include <arpa/inet.h>
+
 using namespace std;
 FILE *openfile;
 
@@ -44,7 +48,7 @@ int main(int argc, char **argv) {
     portno = atoi(argv[4]);
 
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     serv_addr.sin_port = htons(portno);
 
     /* Now bind the host address using bind() call.*/
@@ -117,7 +121,8 @@ int main(int argc, char **argv) {
         fprintf(mensagem, "%s\n", hostname);
         fprintf(mensagem, "%s\n", fileserver);
         fclose(mensagem);
-        
+
+
         char protocolo[4];
         char porta_destino[5];
         char ip_destino[17];
@@ -133,22 +138,21 @@ int main(int argc, char **argv) {
         strcat(solicitacao, " ");
         strcat(solicitacao, porta_destino);
         system(solicitacao);
-// SALVAR EM /index.http
 
-        string caminho = string("./") + string(fileserver);
         char linha[300] = "", result[1024] = "";
-        openfile = fopen (caminho.c_str(), "r");
-        while (fgets(linha, 300, openfile) != NULL)
+        openfile = fopen ("mensagem", "r");
+        while (fgets(linha, 300, openfile) != NULL){
                 strcat(result, linha);          // append the new data
+        }
         fclose(openfile);
 
-      
+		//system("rm mensagem");
         n = write(newsockfd, result, strlen(result));
-
+        cout << result << endl;
         if (n < 0) {
             perror("ERROR writing to socket");
             exit(1);
-        }
+        }            
 
         close(newsockfd);   
         cout << "Aguardando requisição...\n";

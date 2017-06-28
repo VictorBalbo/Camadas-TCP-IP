@@ -1,5 +1,4 @@
 <?php
-require_once 'camadas.php';
 /*
 pack format
 n   unsigned short (always 16 bit, big endian byte order)
@@ -71,7 +70,7 @@ function criaSegmentoTCP($seq_num, $parte) {
 
 function escreveSegmentos ($segmentos){
     $ultimo = array_pop($segmentos);
-    $ultimo = $ultimo . FIMMSG . PHP_EOL;
+    $ultimo = $ultimo . PHP_EOL . FIMMSG . PHP_EOL;
     array_push($segmentos, $ultimo);
     foreach ($segmentos as $segmento) {
       $seq_num = strtok($segmento, "\n");
@@ -109,8 +108,8 @@ function retiraCabecalhoUDP($segmento) {
     $porta_destino = strtok("\n");
     $tamanho = strtok("\n");
     $crc32 = strtok("\n");
-    $parte = strtok(feof());
-    $parte = substr($parte, 0, -strlen(FIMMSG)-1);
+    $parte = strtok("");
+    $parte = substr($parte, 0, -strlen(FIMMSG)-2);
     return array('seq_num' => $seq_num, 'porta_destino' => $porta_destino, 'porta_origem' => $porta_origem,
                 'tamanho' => $tamanho, 'crc32' => $crc32, 'parte' => $parte);
 }
@@ -123,8 +122,8 @@ function retiraCabecalhoTCP($segmento) {
     $tamanho_janela_trans = strtok("\n");
     $tamanho_cabecalho = strtok("\n");
     $crc32 = strtok("\n");
-    $parte = strtok(feof());
-    $parte = substr($parte, 0, -strlen(FIMMSG)-1);
+    $parte = strtok("");
+    $parte = substr($parte, 0, -strlen(FIMMSG)-2);
     return array('seq_num' => $seq_num, 'porta_destino' => $porta_destino,
                 'porta_origem' => $porta_origem, 'ack' => $ack, 'tamanho_cabecalho' => $tamanho_cabecalho, 'tamanho_janela_trans' => $tamanho_janela_trans,'crc32' => $crc32,
                 'parte' => $parte);
@@ -164,14 +163,11 @@ function deletar($tipo) {
 
 function chamarCamadaRede() {
   global $protocolo, $porta_origem, $ip_destino, $porta_destino;
-    //system("node rede_cliente.js $protocolo $porta_origem $ip_destino $porta_destino");
-    system("./teste.sh $protocolo $porta_origem $ip_destino $porta_destino");
+    system("node rede_cliente.js $protocolo $porta_origem $ip_destino $porta_destino");
 }
 
 function chamarCamadaAplicacao() {
-  global $protocolo, $porta_origem, $ip_destino, $porta_destino;
-    //system("app.cpp rede_cliente.js $protocolo $porta_origem $ip_destino $porta_destino");
-    system("./teste.sh $protocolo $porta_origem $ip_destino $porta_destino");
+    system("./app");
 
 }
 if ($protocolo == UDP) {
@@ -187,14 +183,14 @@ if ($protocolo == UDP) {
     if(strcmp (CONEXAO, substr($resposta, 0, -1)) == 0){
       echo "*** Camada de Transporte **" . PHP_EOL;
       echo "Solicitaçao de conexao recebida!... Enviando confirmacao de conexao..." . PHP_EOL;
-      $segmento = criaSegmentoTCP(0, OK) . PHP_EOL . FIMMSG . PHP_EOL;
+      $segmento = criaSegmentoTCP(0, OK) . PHP_EOL . PHP_EOL . FIMMSG . PHP_EOL;
       $seg_name = SEGMENTO . '0';
       // Escreve no segmento para mandar
       $arquivo = fopen($seg_name, "w") or die("Unable to open file!");
       $conteudo = fwrite($arquivo, $segmento);
       fclose($arquivo);
     }else if((strcmp (ACK, substr($resposta, 0, -1)) == 0)){
-      $segmento = criaSegmentoTCP(0, OK) . PHP_EOL . FIMMSG . PHP_EOL;
+      $segmento = criaSegmentoTCP(0, OK) . PHP_EOL . PHP_EOL . FIMMSG . PHP_EOL;
       $seg_name = SEGMENTO . '0';
       // Escreve no segmento para mandar
       $arquivo = fopen($seg_name, "w") or die("Unable to open file!");

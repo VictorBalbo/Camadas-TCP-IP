@@ -109,8 +109,8 @@ function retiraCabecalhoUDP($segmento) {
     $porta_destino = strtok("\n");
     $tamanho = strtok("\n");
     $crc32 = strtok("\n");
-    $parte = strtok(feof());
-    $parte = substr($parte, 0, -strlen(FIMMSG)-1);
+    $parte = strtok("");
+    $parte = substr($parte, 0, -strlen(FIMMSG)-2);
     return array('seq_num' => $seq_num, 'porta_destino' => $porta_destino, 'porta_origem' => $porta_origem,
                 'tamanho' => $tamanho, 'crc32' => $crc32, 'parte' => $parte);
 }
@@ -123,8 +123,8 @@ function retiraCabecalhoTCP($segmento) {
     $tamanho_janela_trans = strtok("\n");
     $tamanho_cabecalho = strtok("\n");
     $crc32 = strtok("\n");
-    $parte = strtok(feof());
-    $parte = substr($parte, 0, -strlen(FIMMSG)-1);
+    $parte = strtok("");
+    $parte = substr($parte, 0, -strlen(FIMMSG)-2);
     return array('seq_num' => $seq_num, 'porta_destino' => $porta_destino,
                 'porta_origem' => $porta_origem, 'ack' => $ack, 'tamanho_cabecalho' => $tamanho_cabecalho, 'tamanho_janela_trans' => $tamanho_janela_trans,'crc32' => $crc32,
                 'parte' => $parte);
@@ -164,8 +164,8 @@ function deletar($tipo) {
 
 function chamarCamadaRede() {
   global $protocolo, $porta_origem, $ip_destino, $porta_destino;
-    //system("node rede_cliente.js $protocolo $porta_origem $ip_destino $porta_destino");
-    system("./teste.sh $protocolo $porta_origem $ip_destino $porta_destino");
+    system("node rede_cliente.js $protocolo $porta_origem $ip_destino $porta_destino");
+    //system("./teste.sh $protocolo $porta_origem $ip_destino $porta_destino");
 
 }
 
@@ -176,9 +176,10 @@ if ($protocolo == UDP) {
     deletar(MENSAGEM);
     chamarCamadaRede();      // Ja escreveu os segmentos em arquivos e chama a rede
     reconstruirMensagem(MENSAGEM);      // Reconstroi as mensagens
+    //deletar(SEGMENTO);
 } else { // TCP
     //--------- Estabelece conexao criando um segmento com a string "conexao"
-    $segmento = criaSegmentoTCP(0, CONEXAO) . PHP_EOL . FIMMSG . PHP_EOL;
+    $segmento = criaSegmentoTCP(0, CONEXAO) . PHP_EOL . PHP_EOL . FIMMSG . PHP_EOL;
     $seg_name = SEGMENTO . '0';
     // Escreve no segmento para mandar
     $arquivo = fopen($seg_name, "w") or die("Unable to open file!");
@@ -199,7 +200,7 @@ if ($protocolo == UDP) {
       deletar(SEGMENTO);
       echo "Arquivo recebido!... Enviando ACK..." . PHP_EOL;
       // ------- Envia ACK
-      $segmento = criaSegmentoTCP(0, ACK) . PHP_EOL . FIMMSG . PHP_EOL;
+      $segmento = criaSegmentoTCP(0, ACK) . PHP_EOL . PHP_EOL . FIMMSG . PHP_EOL;
       $seg_name = SEGMENTO . '0';
       // ------- Escreve no segmento para mandar
       $arquivo = fopen($seg_name, "w") or die("Unable to open file!");

@@ -1,6 +1,6 @@
 'use strict';
-let shell = require('shelljs');
 let rede = require('./rede.js');
+let shell = require('shelljs');
 
 const SEGMENTO = "segmento";
 const PACOTE = "pacote";
@@ -19,21 +19,6 @@ if (process.argv.length < 6) {
 	process.exit()
 }
 
-function sleep(milliseconds) {
-	var start = new Date().getTime();
-	for (var i = 0; i < 1e7; i++) {
-		if ((new Date().getTime() - start) > milliseconds){
-			break;
-		}
-	}
-	start = new Date().getTime();
-	for (var i = 0; i < 1e7; i++) {
-		if ((new Date().getTime() - start) > milliseconds){
-			break;
-		}
-	}
-}
-
 var protocolo = process.argv[2];
 var ip_origem = shell.exec("ip route show default | grep 'src' | awk '{print $9}' | head -1", { silent: true }).stdout.replace(/\n/, "");
 var porta_origem = process.argv[3];
@@ -41,11 +26,10 @@ var ip_destino = process.argv[4];
 var porta_destino = process.argv[5];
 var pacotes = {};
 
+rede.montaSegmento();
+rede.destroi(PACOTE);
+console.log("REDES - Chama camada fisica e espera resposta...");
+shell.exec('php trans_sr.php ' + protocolo + ' ' + porta_origem + ' ' + ip_destino + ' ' + porta_destino);
 rede.montaPacote();
 rede.destroi(SEGMENTO);
-console.log("REDES - Chama camada fisica e espera resposta...");
-//shell.exec('./fis_client.sh ' + protocolo + ' ' + porta_origem + ' ' + ip_destino + ' ' + porta_destino);
 
-sleep(50000);
-rede.montaSegmento();
-//rede.destroi(PACOTE);
